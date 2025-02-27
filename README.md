@@ -15,7 +15,7 @@ Description
 
     Organisation des mots de passe par catégorie.
 
-✅ Recherche rapide (2 pts)
+❌ Recherche rapide (2 pts)
 
     Barre de recherche permettant de retrouver rapidement un mot de passe par titre.
 
