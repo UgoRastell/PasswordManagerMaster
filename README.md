@@ -42,7 +42,7 @@ Description
 
 ✅ Sauvegarde sur SQLite (5 pts)
 
-    Utilisation d’une base de données SQLite en cours d’intégration.
+    Utilisation d’une base de données SQLite.
 
 ❌ Tests unitaires et Application mobile (5 pts bonus)
 
