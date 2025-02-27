@@ -48,17 +48,6 @@ Description
 
     Tests unitaires et version mobile non encore développés.
 
-📁 Structure du Projet
-
-.
-├── src
-│   ├── PasswordManager.Web      # Projet Blazor (Frontend)
-│   ├── PasswordManager.Api      # API Backend
-│   └── PasswordManager.Core     # Logique métier
-├── tests
-│   └── PasswordManager.Tests    # Tests unitaires et d'intégration (à implémenter)
-└── README.md                    # Documentation du projet
-
 📌 Prérequis
 
     .NET 9 SDK installé.
