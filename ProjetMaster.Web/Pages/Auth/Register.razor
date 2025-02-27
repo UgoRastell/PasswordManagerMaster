@@ -1,0 +1,179 @@
+﻿@page "/register"
+@using System.ComponentModel.DataAnnotations
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@using MudBlazor
+@using System.Text.RegularExpressions
+
+<MudContainer Class="mt-16 px-8" MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <!-- Conteneur principal centré -->
+        <MudItem xs="12" sm="8" md="6" Class="mx-auto">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">
+                    Inscription
+                </MudText>
+                <MudForm @ref="registerForm" @bind-IsValid="registerValid" @bind-Errors="errors">
+                    <!-- Champ Email -->
+                    <MudTextField T="string"
+                                  Label="Email"
+                                  @bind-Value="email"
+                                  Required="true"
+                                  RequiredError="L'adresse email est requise"
+                                  Validation="@(new EmailAddressAttribute() { ErrorMessage = "Adresse email invalide" })" />
+                    <!-- Champ Mot de passe -->
+                    <MudTextField T="string"
+                                  Label="Mot de passe"
+                                  @bind-Value="password"
+                                  InputType="InputType.Password"
+                                  Required="true"
+                                  RequiredError="Le mot de passe est requis"
+                                  Validation="@(new Func<string, IEnumerable<string>>(ValidatePassword))"
+                                  Class="mt-3" />
+                    <!-- Champ Confirmer le mot de passe -->
+                    <MudTextField T="string"
+                                  Label="Confirmer le mot de passe"
+                                  @bind-Value="confirmPassword"
+                                  InputType="InputType.Password"
+                                  Required="true"
+                                  RequiredError="La confirmation est requise"
+                                  Validation="@(new Func<string, string>(ValidatePasswordMatch))"
+                                  Class="mt-3" />
+                    <!-- Bouton d'inscription -->
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Class="mt-4"
+                               Disabled="@( !registerValid )"
+                               OnClick="PerformRegistration">
+                        S'inscrire
+                    </MudButton>
+                </MudForm>
+            </MudPaper>
+            <MudPaper Class="pa-4 mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           DropShadow="false"
+                           Href="/login">
+                    Se connecter
+                </MudButton>
+            </MudPaper>
+            @if (!string.IsNullOrEmpty(apiError))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-4">
+                    @apiError
+                </MudAlert>
+            }
+            @if (!string.IsNullOrEmpty(apiSuccess))
+            {
+                <MudAlert Severity="Severity.Success" Class="mt-4">
+                    @apiSuccess
+                </MudAlert>
+            }
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    // Référence au formulaire d'inscription
+    MudForm registerForm;
+    bool registerValid;
+    string[] errors = { };
+
+    // Variables liées aux champs
+    string email;
+    string password;
+    string confirmPassword;
+
+    // Messages de retour API
+    string apiError;
+    string apiSuccess;
+
+    /// <summary>
+    /// Validation du mot de passe : vérifie la présence, la longueur et la complexité
+    /// </summary>
+    private IEnumerable<string> ValidatePassword(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            yield return "Le mot de passe est requis";
+            yield break;
+        }
+        if (value.Length < 8)
+            yield return "Le mot de passe doit contenir au moins 8 caractères";
+        if (!Regex.IsMatch(value, @"[A-Z]"))
+            yield return "Le mot de passe doit contenir au moins une lettre majuscule";
+        if (!Regex.IsMatch(value, @"[a-z]"))
+            yield return "Le mot de passe doit contenir au moins une lettre minuscule";
+        if (!Regex.IsMatch(value, @"[0-9]"))
+            yield return "Le mot de passe doit contenir au moins un chiffre";
+    }
+
+    /// <summary>
+    /// Vérifie que la confirmation du mot de passe correspond au mot de passe saisi
+    /// </summary>
+    private string ValidatePasswordMatch(string value)
+    {
+        if (password != value)
+            return "Les mots de passe ne correspondent pas";
+        return null;
+    }
+
+    /// <summary>
+    /// Méthode appelée lors du clic sur le bouton d'inscription.
+    /// Appelle l'API d'inscription et redirige vers la page de connexion en cas de succès.
+    /// </summary>
+    private async Task PerformRegistration()
+    {
+        await registerForm.Validate();
+        if (registerValid)
+        {
+            // Crée le DTO d'inscription à partir des valeurs saisies
+            var registerRequest = new RegisterRequestDto
+                {
+                    Email = email,
+                    Password = password
+                };
+
+            try
+            {
+                // Appel de l'API sur l'URL "api/register/register"
+                var response = await Http.PostAsJsonAsync("api/register/register", registerRequest);
+                if (response.IsSuccessStatusCode)
+                {
+                    apiSuccess = "Inscription réussie. Vous pouvez maintenant vous connecter.";
+                    // Optionnel : rediriger vers la page de connexion
+                    NavigationManager.NavigateTo("/login");
+                }
+                else
+                {
+                    // Tente de lire le message d'erreur renvoyé par l'API
+                    var errorContent = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+                    apiError = errorContent?.Message ?? "Erreur lors de l'inscription.";
+                }
+            }
+            catch (Exception ex)
+            {
+                apiError = ex.Message;
+            }
+        }
+    }
+
+    // DTO utilisé pour l'inscription (correspond à celui attendu par l'API)
+    public class RegisterRequestDto
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; }
+
+        [Required]
+        [MinLength(6, ErrorMessage = "Le mot de passe doit contenir au moins 6 caractères.")]
+        public string Password { get; set; }
+    }
+
+    // Classe pour désérialiser la réponse d'erreur de l'API (si vous l'utilisez dans votre contrôleur)
+    public class ApiErrorResponse
+    {
+        public string Message { get; set; }
+    }
+}

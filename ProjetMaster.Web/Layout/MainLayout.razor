@@ -1,0 +1,25 @@
+﻿@inherits LayoutComponentBase
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <!-- Barre de navigation en haut -->
+    <MudAppBar Elevation="1">
+        <MudText Typo="Typo.h5" Class="ml-3"></MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Filled.MoreVert" Color="Color.Inherit" Edge="Edge.End" />
+    </MudAppBar>
+
+    <!-- Barre latérale avec le menu -->
+    <MudDrawer Open="true" Variant="DrawerVariant.Mini">
+        <NavMenu />
+    </MudDrawer>
+
+    <!-- Contenu principal -->
+    <MudMainContent>
+        @Body
+    </MudMainContent>
+</MudLayout>

@@ -1,0 +1,60 @@
+﻿@page "/"
+@inherits LayoutComponentBase
+
+
+<MudContainer Class="mt-16 px-8" MaxWidth="MaxWidth.False">
+    <!-- Titre principal -->
+    <MudText Typo="Typo.h3" Align="Align.Center" Class="mb-2">
+        Gestionnaire de Mots de Passe
+    </MudText>
+    <MudText Typo="Typo.subtitle1" Align="Align.Center" Class="mb-6">
+        Stockez, organisez et sécurisez vos mots de passe en toute simplicité.
+    </MudText>
+    
+    <!-- Grille des fonctionnalités -->
+    <MudGrid GutterSize="GutterSize.Medium">
+        <!-- Authentification -->
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h5" Class="mb-2">Authentification</MudText>
+                <MudText Typo="Typo.body2">
+                    Inscrivez-vous et connectez-vous pour accéder à vos données en toute sécurité.
+                </MudText>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" Class="mt-4" Href="/login">
+                    Se Connecter
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+        
+        <!-- Gestion des mots de passe -->
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h5" Class="mb-2">Gestion des Mots de Passe</MudText>
+                <MudText Typo="Typo.body2">
+                    Ajoutez, modifiez et supprimez vos mots de passe en toute simplicité.
+                </MudText>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" Class="mt-4" Href="/passwords">
+                    Gérer
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+        
+        <!-- Catégorisation -->
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h5" Class="mb-2">Catégorisation</MudText>
+                <MudText Typo="Typo.body2">
+                    Organisez vos mots de passe par catégories pour une navigation facilitée.
+                </MudText>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" Class="mt-4" Href="/categories">
+                    Voir les Catégories
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+        
+
+       
+        
+    </MudGrid>
+</MudContainer>
+

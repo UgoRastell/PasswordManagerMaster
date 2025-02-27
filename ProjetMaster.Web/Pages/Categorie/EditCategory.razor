@@ -1,0 +1,138 @@
+﻿@page "/editcategory/{id:guid}"
+@using System.ComponentModel.DataAnnotations
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@inject IDialogService DialogService
+@using MudBlazor
+
+<MudContainer Class="mt-16 px-8" MaxWidth="MaxWidth.False">
+    <MudPaper Class="pa-4 mx-auto" Style="max-width: 600px;">
+        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">
+            Modifier la catégorie
+        </MudText>
+
+        @if (isLoading)
+        {
+            <MudProgressCircular Size="Size.Large" Color="Color.Primary" Class="mt-4" />
+        }
+        else if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4">
+                @errorMessage
+            </MudAlert>
+        }
+        else
+        {
+            <MudForm @ref="form" @bind-IsValid="formIsValid">
+                <!-- Champ pour modifier le nom de la catégorie -->
+                <MudTextField T="string"
+                              Label="Nom de la catégorie"
+                              @bind-Value="categoryDto.Name"
+                              Required="true"
+                              RequiredError="Le nom de la catégorie est requis." />
+
+                <!-- Bouton Enregistrer -->
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Class="mt-4"
+                           Disabled="@( !formIsValid )"
+                           OnClick="UpdateCategory">
+                    Enregistrer les modifications
+                </MudButton>
+            </MudForm>
+
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <MudAlert Severity="Severity.Success" Class="mt-4">
+                    @successMessage
+                </MudAlert>
+            }
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter]
+    public Guid id { get; set; }
+
+    MudForm form;
+    bool formIsValid = false;
+    string successMessage;
+    string errorMessage;
+    bool isLoading = true;
+
+    CategoryDto categoryDto = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await localStorage.GetItemAsync<string>("authToken");
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            errorMessage = "Vous devez être connecté pour modifier une catégorie.";
+            isLoading = false;
+            return;
+        }
+
+        Http.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        await LoadCategory();
+        isLoading = false;
+    }
+
+    private async Task LoadCategory()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<CategoryDto>($"api/categories/{id}");
+            if (response != null)
+            {
+                categoryDto = response;
+            }
+            else
+            {
+                errorMessage = "Catégorie introuvable.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erreur lors du chargement : {ex.Message}";
+        }
+    }
+
+    private async Task UpdateCategory()
+    {
+        await form.Validate();
+        if (formIsValid)
+        {
+            try
+            {
+                var response = await Http.PutAsJsonAsync($"api/categories/{id}", categoryDto);
+                if (response.IsSuccessStatusCode)
+                {
+                    successMessage = "Catégorie mise à jour avec succès.";
+                    await Task.Delay(1000);
+                    NavigationManager.NavigateTo("/categories");
+                }
+                else
+                {
+                    errorMessage = "Erreur lors de la mise à jour.";
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Erreur : {ex.Message}";
+            }
+        }
+    }
+
+    public class CategoryDto
+    {
+        public Guid Id { get; set; }
+
+        [Required(ErrorMessage = "Le nom de la catégorie est requis.")]
+        public string Name { get; set; }
+    }
+}

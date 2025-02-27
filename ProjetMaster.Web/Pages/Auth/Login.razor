@@ -1,0 +1,125 @@
+﻿@page "/login"
+@using System.ComponentModel.DataAnnotations
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@using MudBlazor
+
+<MudContainer Class="mt-16 px-8" MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <!-- Conteneur du formulaire de connexion -->
+        <MudItem xs="12" sm="7" md="5" Class="mx-auto">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">Connexion</MudText>
+                <MudForm @ref="loginForm" @bind-IsValid="loginValid" @bind-Errors="errors">
+                    <!-- Champ Email -->
+                    <MudTextField T="string"
+                                  Label="Email"
+                                  @bind-Value="loginEmail"
+                                  Required="true"
+                                  RequiredError="L'adresse email est requise!"
+                                  Validation="@(new EmailAddressAttribute() { ErrorMessage = "L'adresse email est invalide" })" />
+                    <!-- Champ Mot de Passe -->
+                    <MudTextField T="string"
+                                  Label="Mot de passe"
+                                  @bind-Value="loginPassword"
+                                  InputType="InputType.Password"
+                                  Required="true"
+                                  RequiredError="Le mot de passe est requis!"
+                                  Class="mt-3" />
+                    <!-- Option "Remember me" -->
+                    <MudCheckBox T="bool" Label="Se souvenir de moi" @bind-Value="rememberMe" Class="mt-3" />
+
+                    <!-- Bouton de connexion -->
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Class="mt-4"
+                               Disabled="@( !loginValid )"
+                               OnClick="PerformLogin">
+                        Connexion
+                    </MudButton>
+                </MudForm>
+            </MudPaper>
+
+            <!-- Bouton pour s'inscrire -->
+            <MudPaper Class="pa-4 mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           DropShadow="false"
+                           Href="/register">
+                    S'inscrire
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    // Référence au formulaire de connexion
+    MudForm loginForm;
+    bool loginValid;
+    string[] errors = { };
+
+    // Variables liées aux champs
+    string loginEmail;
+    string loginPassword;
+    bool rememberMe;
+
+    // DTO envoyé à l'API pour la connexion
+    public class LoginRequestDto
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; }
+        [Required]
+        public string Password { get; set; }
+    }
+
+    // DTO représentant la réponse de l'API lors du login.
+    public class LoginResponse
+    {
+        public string Token { get; set; }
+        public UserResponseDto User { get; set; }
+    }
+
+    // DTO représentant les données utilisateur retournées par l'API.
+    public class UserResponseDto
+    {
+        public string Id { get; set; }
+        public string Email { get; set; }
+    }
+
+    /// <summary>
+    /// Méthode appelée lors du clic sur le bouton "Connexion".
+    /// Elle envoie les identifiants à l'API et, en cas de succès, stocke le token dans le Local Storage.
+    /// </summary>
+    private async Task PerformLogin()
+    {
+        await loginForm.Validate();
+        if (loginValid)
+        {
+            var loginRequest = new LoginRequestDto { Email = loginEmail, Password = loginPassword };
+
+            // Appel de l'API pour se connecter.
+            var response = await Http.PostAsJsonAsync("api/login/login", loginRequest);
+            if (response.IsSuccessStatusCode)
+            {
+                // Désérialise la réponse JSON en objet LoginResponse.
+                var loginResult = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                Console.WriteLine("Token reçu : " + loginResult.Token);
+
+                // Stocke le token dans le Local Storage
+                await localStorage.SetItemAsync("authToken", loginResult.Token);
+
+                // Redirige vers la page d'accueil (ou une autre page sécurisée)
+                NavigationManager.NavigateTo("/");
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine("Erreur lors de la connexion : " + errorContent);
+            }
+        }
+    }
+}

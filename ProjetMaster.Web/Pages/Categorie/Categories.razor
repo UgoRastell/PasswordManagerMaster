@@ -1,0 +1,165 @@
+﻿@page "/categories"
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@using MudBlazor
+
+<MudContainer Class="mt-16 px-8" MaxWidth="MaxWidth.False">
+    <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">
+        Gestion des Catégories
+    </MudText>
+
+    <!-- Bouton pour créer une nouvelle catégorie -->
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => NavigationManager.NavigateTo("/categoriesCreate"))">
+        Ajouter une catégorie
+    </MudButton>
+
+    <!-- Liste des catégories -->
+    <MudPaper Class="pa-4 mt-4">
+        <MudText Typo="Typo.subtitle1"><b>Catégories existantes :</b></MudText>
+        <MudTable Items="categories" Dense="true" Hover="true">
+            <HeaderContent>
+                <MudTh>Nom</MudTh>
+                <MudTh>Nombre de mots de passe</MudTh>
+                <MudTh>Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Nom">@context.Name</MudTd>
+                <MudTd DataLabel="Nombre">@passwords.Count(p => p.CategoryId == context.Id)</MudTd>
+                <MudTd DataLabel="Actions">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => EditCategory(context.Id))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteCategory(context.Id))" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+
+ 
+
+    @if (!string.IsNullOrEmpty(apiMessage))
+    {
+        <MudAlert Severity="Severity.Success" Class="mt-4">@apiMessage</MudAlert>
+    }
+    @if (!string.IsNullOrEmpty(apiError))
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-4">@apiError</MudAlert>
+    }
+</MudContainer>
+
+@code {
+    public class CategoryDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+    }
+
+    public class PasswordEntryDto
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; }
+        public string Username { get; set; }
+        public Guid? CategoryId { get; set; }
+        public Guid UserId { get; set; }
+    }
+
+    List<CategoryDto> categories = new();
+    List<PasswordEntryDto> passwords = new();
+    string apiError;
+    string apiMessage;
+    Dictionary<Guid, Guid?> selectedCategoryForPassword = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await localStorage.GetItemAsync<string>("authToken");
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+        await LoadCategories();
+        await LoadPasswords();
+    }
+
+    private async Task LoadCategories()
+    {
+        try
+        {
+            categories = await Http.GetFromJsonAsync<List<CategoryDto>>("api/categories");
+        }
+        catch (Exception ex)
+        {
+            apiError = "Erreur lors du chargement des catégories: " + ex.Message;
+        }
+    }
+
+    private async Task LoadPasswords()
+    {
+        try
+        {
+            passwords = await Http.GetFromJsonAsync<List<PasswordEntryDto>>("api/passwords");
+        }
+        catch (Exception ex)
+        {
+            apiError = "Erreur lors du chargement des mots de passe: " + ex.Message;
+        }
+    }
+
+    IEnumerable<PasswordEntryDto> passwordsWithoutCategory => passwords.Where(p => p.CategoryId == null);
+
+    private Guid? GetSelectedCategory(Guid passwordId)
+    {
+        return selectedCategoryForPassword.TryGetValue(passwordId, out var value) ? value : null;
+    }
+
+    private void SetSelectedCategory(Guid passwordId, Guid? value)
+    {
+        selectedCategoryForPassword[passwordId] = value;
+    }
+
+    private async Task AssignCategory(Guid passwordId)
+    {
+        if (selectedCategoryForPassword.TryGetValue(passwordId, out Guid? selectedCatId) && selectedCatId.HasValue)
+        {
+            var passwordEntry = passwords.FirstOrDefault(p => p.Id == passwordId);
+            if (passwordEntry != null)
+            {
+                passwordEntry.CategoryId = selectedCatId;
+                var response = await Http.PutAsJsonAsync($"api/passwords/{passwordId}", passwordEntry);
+                if (response.IsSuccessStatusCode)
+                {
+                    apiMessage = "Catégorie assignée avec succès.";
+                    await LoadPasswords();
+                }
+                else
+                {
+                    apiError = $"Erreur lors de l'assignation : {response.ReasonPhrase}";
+                }
+            }
+        }
+    }
+
+    private void EditCategory(Guid categoryId)
+    {
+        NavigationManager.NavigateTo($"/editcategory/{categoryId}");
+    }
+
+    private async Task DeleteCategory(Guid categoryId)
+    {
+        bool? confirmed = await DialogService.ShowMessageBox("Confirmation", "Voulez-vous vraiment supprimer cette catégorie ?", yesText: "Oui", cancelText: "Non");
+        if (confirmed == true)
+        {
+            var response = await Http.DeleteAsync($"api/categories/{categoryId}");
+            if (response.IsSuccessStatusCode)
+            {
+                apiMessage = "Catégorie supprimée avec succès.";
+                await LoadCategories();
+            }
+            else
+            {
+                apiError = "Erreur lors de la suppression de la catégorie.";
+            }
+        }
+    }
+}

@@ -1,0 +1,201 @@
+﻿@page "/generator"
+@using System.ComponentModel.DataAnnotations
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@using MudBlazor
+
+<MudContainer Class="mt-16 px-8" MaxWidth="MaxWidth.False">
+    <MudPaper Class="pa-4 mx-auto" Style="max-width: 600px;">
+        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-4">
+            Créer un nouveau mot de passe
+        </MudText>
+
+        <MudForm @ref="form" @bind-IsValid="formIsValid">
+            <MudTextField T="string" 
+                          Label="Titre" 
+                          @bind-Value="passwordEntry.Title" 
+                          Required="true" 
+                          RequiredError="Le titre est requis." 
+                          Class="mb-3" />
+
+            <MudTextField T="string" 
+                          Label="Nom d'utilisateur" 
+                          @bind-Value="passwordEntry.Username" 
+                          Required="true" 
+                          RequiredError="Le nom d'utilisateur est requis." 
+                          Class="mb-3" />
+
+            <MudSelect T="Guid?" Label="Catégorie" @bind-Value="passwordEntry.CategoryId" Class="mb-3">
+                <MudSelectItem T="Guid?" Value="null">Aucune catégorie</MudSelectItem>
+                @foreach (var cat in categories)
+                {
+                    <MudSelectItem T="Guid?" Value="@cat.Id">@cat.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => NavigationManager.NavigateTo("/categoriesCreate"))">
+                + Ajouter une nouvelle catégorie
+            </MudButton>
+
+            <MudSlider @bind-Value="PasswordLength" 
+                       Min="6" 
+                       Max="32" 
+                       Step="1" 
+                       Color="Color.Info" 
+                       Class="mt-3">
+                Nombre de caractères: @((int)PasswordLength)
+            </MudSlider>
+
+            <MudCheckBox @bind-Value="ExcludeNumbers" Label="Exclure les chiffres" Class="mt-2"/>
+            <MudCheckBox @bind-Value="ExcludeSpecialCharacters" Label="Exclure les caractères spéciaux" Class="mt-2"/>
+
+            <MudTextField T="string" 
+                          Label="Mot de passe" 
+                          @bind-Value="passwordEntry.Password" 
+                          InputType="@(showPassword ? InputType.Text : InputType.Password)" 
+                          Required="true" 
+                          RequiredError="Le mot de passe est requis." 
+                          Class="mt-3">
+                <AdornmentContent Adornment="Adornment.End">
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="GenerateRandomPassword" />
+                    <MudIconButton Icon="@(showPassword ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" OnClick="TogglePasswordVisibility" />
+                </AdornmentContent>
+            </MudTextField>
+
+            <MudTextField T="string" 
+                          Label="Notes" 
+                          @bind-Value="passwordEntry.Notes" 
+                          Class="mt-3" />
+
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       Class="mt-4" 
+                       Disabled="@( !formIsValid )" 
+                       OnClick="SubmitPasswordEntry">
+                Créer
+            </MudButton>
+        </MudForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    MudForm form;
+    bool formIsValid = false;
+    PasswordEntryDto passwordEntry = new PasswordEntryDto();
+    List<CategoryDto> categories = new List<CategoryDto>();
+    private double _passwordLength = 12;
+    public double PasswordLength
+    {
+        get => _passwordLength;
+        set
+        {
+            if (_passwordLength != value)
+            {
+                _passwordLength = value;
+                GenerateRandomPassword();
+            }
+        }
+    }
+
+    bool showPassword = false;
+    bool ExcludeNumbers = false;
+    bool ExcludeSpecialCharacters = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategories();
+    }
+
+    private async Task LoadCategories()
+    {
+        try
+        {
+            categories = await Http.GetFromJsonAsync<List<CategoryDto>>("api/categories");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Erreur lors du chargement des catégories: " + ex.Message);
+        }
+    }
+
+    private void GenerateRandomPassword()
+    {
+        string lowercase = "abcdefghijklmnopqrstuvwxyz";
+        string uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        string numbers = "0123456789";
+        string specialChars = "!@#$%^&*()";
+
+        // Construire l’ensemble de caractères autorisés
+        string allowedChars = lowercase + uppercase;
+        if (!ExcludeNumbers) allowedChars += numbers;
+        if (!ExcludeSpecialCharacters) allowedChars += specialChars;
+
+        var random = new Random();
+        int length = (int)PasswordLength;
+        char[] chars = new char[length];
+        for (int i = 0; i < length; i++)
+        {
+            chars[i] = allowedChars[random.Next(allowedChars.Length)];
+        }
+        passwordEntry.Password = new string(chars);
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
+    }
+
+    private async Task SubmitPasswordEntry()
+    {
+        await form.Validate();
+        if (formIsValid)
+        {
+            try
+            {
+                var token = await localStorage.GetItemAsync<string>("authToken");
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                }
+
+                var response = await Http.PostAsJsonAsync("api/passwords", passwordEntry);
+                if (response.IsSuccessStatusCode)
+                {
+                    await Task.Delay(1000);
+                    NavigationManager.NavigateTo("/passwords");
+                }
+                else
+                {
+                    Console.WriteLine($"Erreur lors de la création : {response.ReasonPhrase}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur : {ex.Message}");
+            }
+        }
+    }
+
+    public class PasswordEntryDto
+    {
+        [Required]
+        public string Title { get; set; }
+
+        [Required]
+        public string Username { get; set; }
+
+        [Required]
+        public string Password { get; set; }
+
+        public string Notes { get; set; }
+        public Guid? CategoryId { get; set; }
+    }
+
+    public class CategoryDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+    }
+}
